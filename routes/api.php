@@ -70,7 +70,7 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::get('/agent/{id}', [AgentController::class, 'show']);
     });
 
-    Route::middleware(['check.status:Operateur'])->group(function() {
+    Route::middleware(['check.status:Operateur,Admin'])->group(function() {
         //ajout agent
         Route::post('/agents', [AgentController::class, 'store']);
 

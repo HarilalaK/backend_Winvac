@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('region');
             $table->string('centre');
             $table->string('situation');
-            $table->string('role');
-            $table->integer('jours_travaille');
+            $table->enum('role', ['president', 'presidentAdjoint', 'SecOrg', 'CDC', 'CDCA', 'secretaire', 'Surveillance', 'correction', 'Securite']);
+            $table->integer('jours_travaille')->nullable();
             $table->string('im')->nullable();
             $table->string('cin');
             $table->string('nom');

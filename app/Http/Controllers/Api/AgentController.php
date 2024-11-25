@@ -27,7 +27,7 @@ class AgentController extends Controller
             'centre' => 'required|string', // Centre doit être une chaîne de caractères
             'situation' => 'required|string', // Situation doit être une chaîne de caractères
             'role' => 'required|string', // Rôle doit être une chaîne de caractères
-            'jours_travaille' => 'required|integer', // Jours travaillés doit être un entier
+            'jours_travaille' => 'integer|nullable', // Jours travaillés doit être un entier
             'im' => 'nullable|string', // IM peut être une chaîne de caractères ou null
             'cin' => 'required|string|unique:agents', // CIN doit être unique et une chaîne de caractères
             'nom' => 'required|string', // Nom doit être une chaîne de caractères
