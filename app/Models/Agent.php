@@ -11,9 +11,7 @@ class Agent extends Model
 
     protected $fillable = [
         'annee',
-        'province',
-        'region',
-        'centre',
+        'centre_id',
         'situation',
         'role',
         'jours_travaille',
@@ -35,4 +33,9 @@ class Agent extends Model
         'date_cin' => 'date',
         'annee' => 'integer',
     ];
+
+    public function centre()
+    {
+        return $this->belongsTo(Centre::class);
+    }
 }

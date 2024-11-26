@@ -5,6 +5,9 @@ use App\Http\Controllers\Api\MatiereController;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AgentController;
+use App\Http\Controllers\Api\ProvinceController;
+use App\Http\Controllers\Api\RegionController;
+use App\Http\Controllers\Api\CentreController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +44,11 @@ Route::middleware('auth:sanctum')->group(function(){
 
         //agents
         Route::apiResource('agents', AgentController::class);
+
+        //lieu
+        Route::apiResource('provinces', ProvinceController::class);
+        Route::apiResource('regions', RegionController::class);
+        Route::apiResource('centres', CentreController::class);
     });
 
     Route::middleware(['check.status:Admin,DR'])->group(function() {
@@ -79,4 +87,6 @@ Route::middleware('auth:sanctum')->group(function(){
         
         
     });
+
+    
 });
