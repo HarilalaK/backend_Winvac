@@ -31,6 +31,19 @@ class CentreController extends Controller
         return response()->json($centres);
     }
 
+    public function store(Request $request)
+    {
+        $request->validate([
+            'nom' => 'required',
+            'type' => 'required|in:examen,etablissement',
+            'region_id' => 'required|exists:regions,id',
+            'nom' => 'unique:centres,nom,NULL,id,region_id,' . $request->region_id
+        ]);
+
+        $centre = Centre::create($request->all());
+        return response()->json($centre->load(['region.province']), 201);
+    }
+
     public function show(Centre $centre)
     {
         $centre->load(['region.province']);
@@ -52,16 +65,22 @@ class CentreController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function update(Request $request, Centre $centre)
     {
         $request->validate([
-            'nom' => 'required',
-            'type' => 'required|in:examen,etablissement',
-            'region_id' => 'required|exists:regions,id',
-            'nom' => 'unique:centres,nom,NULL,id,region_id,' . $request->region_id
+            'nom' => 'sometimes|required',
+            'type' => 'sometimes|required|in:examen,etablissement',
+            'region_id' => 'sometimes|required|exists:regions,id',
+            'nom' => 'unique:centres,nom,' . $centre->id . ',id,region_id,' . ($request->region_id ?? $centre->region_id)
         ]);
 
-        $centre = Centre::create($request->all());
-        return response()->json($centre->load(['region.province']), 201);
+        $centre->update($request->all());
+        return response()->json($centre->load(['region.province']));
+    }
+
+    public function destroy(Centre $centre)
+    {
+        $centre->delete();
+        return response()->json(null, 204);
     }
 } 

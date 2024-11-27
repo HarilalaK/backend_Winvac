@@ -22,11 +22,29 @@ class RegionController extends Controller
         ]);
 
         $region = Region::create($request->all());
-        return response()->json($region, 201);
+        return response()->json($region->load('province'), 201);
     }
 
     public function show(Region $region)
     {
+        return response()->json($region->load(['province', 'centres']));
+    }
+
+    public function update(Request $request, Region $region)
+    {
+        $request->validate([
+            'nom' => 'sometimes|required',
+            'province_id' => 'sometimes|required|exists:provinces,id',
+            'nom' => 'unique:regions,nom,' . $region->id . ',id,province_id,' . ($request->province_id ?? $region->province_id)
+        ]);
+
+        $region->update($request->all());
         return response()->json($region->load('province'));
+    }
+
+    public function destroy(Region $region)
+    {
+        $region->delete();
+        return response()->json(null, 204);
     }
 } 

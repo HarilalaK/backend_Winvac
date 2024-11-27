@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\CentreController;
+use App\Http\Controllers\Api\TauxController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -49,6 +50,9 @@ Route::middleware('auth:sanctum')->group(function(){
         Route::apiResource('provinces', ProvinceController::class);
         Route::apiResource('regions', RegionController::class);
         Route::apiResource('centres', CentreController::class);
+
+        // Taux
+        Route::apiResource('taux', TauxController::class);
     });
 
     Route::middleware(['check.status:Admin,DR'])->group(function() {

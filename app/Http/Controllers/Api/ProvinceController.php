@@ -25,6 +25,22 @@ class ProvinceController extends Controller
 
     public function show(Province $province)
     {
+        return response()->json($province->load('regions'));
+    }
+
+    public function update(Request $request, Province $province)
+    {
+        $request->validate([
+            'nom' => 'required|unique:provinces,nom,' . $province->id
+        ]);
+
+        $province->update($request->all());
         return response()->json($province);
+    }
+
+    public function destroy(Province $province)
+    {
+        $province->delete();
+        return response()->json(null, 204);
     }
 } 
