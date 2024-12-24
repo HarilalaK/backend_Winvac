@@ -13,6 +13,11 @@ return new class extends Migration
             $table->string('nom');
             $table->enum('type', ['examen', 'etablissement']);
             $table->foreignId('region_id')->constrained('regions')->onDelete('cascade');
+            $table->integer('nombre_salles')->nullable();
+            $table->integer('nombre_candidats')->nullable();
+            $table->string('numero_centre')->nullable();
+            $table->enum('type_examen', ['BEP', 'CFA', 'CAP', 'ConcoursLTP', 'ConcoursCFP'])->nullable();
+            $table->year('session')->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['nom', 'region_id']);

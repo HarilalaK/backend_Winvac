@@ -4,13 +4,27 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Centre extends Model
 {
-    use HasFactory, SoftDeletes;
+    use SoftDeletes;
 
-    protected $fillable = ['nom', 'type', 'region_id'];
+    protected $fillable = [
+        'nom',
+        'type',
+        'region_id',
+        'nombre_salles',
+        'nombre_candidats',
+        'numero_centre',
+        'type_examen',
+        'session'
+    ];
+
+    protected $casts = [
+        'session' => 'integer',
+        'nombre_salles' => 'integer',
+        'nombre_candidats' => 'integer'
+    ];
 
     public function region()
     {

@@ -2,19 +2,19 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
         $this->call([
-            // ... autres seeders
-            TauxSeeder::class,
+            ProvinceSeeder::class,
+            RegionSeeder::class,
+            CentreSeeder::class,
+            MatiereSeeder::class,
+            RoleSeeder::class,
+            UserSeeder::class,
         ]);
     }
 }

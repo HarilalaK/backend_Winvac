@@ -12,11 +12,17 @@ class Region extends Model
 
     protected $fillable = ['nom', 'province_id'];
 
+    /**
+     * Relation avec la province
+     */
     public function province()
     {
         return $this->belongsTo(Province::class);
     }
 
+    /**
+     * Relation avec les centres
+     */
     public function centres()
     {
         return $this->hasMany(Centre::class);

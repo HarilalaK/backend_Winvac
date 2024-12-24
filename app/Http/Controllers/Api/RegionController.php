@@ -47,4 +47,12 @@ class RegionController extends Controller
         $region->delete();
         return response()->json(null, 204);
     }
+
+    /**
+     * Récupérer tous les centres d'une région
+     */
+    public function centres(Region $region)
+    {
+        return response()->json($region->centres);
+    }
 } 

@@ -3,72 +3,57 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Matiere; // Assurez-vous que le modèle Matiere existe
+use App\Models\Matiere;
 use Illuminate\Http\Request;
 
 class MatiereController extends Controller
 {
-    // Récupérer toutes les matières
-    public function recupererMatieres()
+    public function index()
     {
-        $matieres = Matiere::all();
-        return response()->json($matieres);
+        return Matiere::orderBy('num_matiere')->get();
     }
 
-    public function creerMatiere(Request $request)
+    public function store(Request $request)
     {
-        $request->validate([
-            'Nmat' => 'required|integer',
-            'code' => 'required|integer|unique:matieres',
-            'designation' => 'required|string|max:255',
+        $validated = $request->validate([
+            'num_matiere' => 'required|integer|unique:matieres',
+            'code' => 'required|string|unique:matieres',
+            'designation' => 'required|string',
             'BEP' => 'boolean',
-            'CFA' => 'boolean',
             'CAP' => 'boolean',
+            'CFA' => 'boolean',
             'ConcoursLTP' => 'boolean',
-            'ConcoursCFP' => 'boolean',
-            'Observations' => 'nullable|string',
+            'ConcoursCFP' => 'boolean'
         ]);
 
-        $matiere = Matiere::create($request->all());
-
-        return response()->json($matiere, 201);
+        return Matiere::create($validated);
     }
 
-
-    // Récupérer une matière par son ID
-    public function recupererMatiere($id)
+    public function show(Matiere $matiere)
     {
-        $matiere = Matiere::findOrFail($id);
-        return response()->json($matiere);
+        return $matiere;
     }
 
-    // Mettre à jour une matière
-    public function mettreAJourMatiere(Request $request, $id)
+    public function update(Request $request, Matiere $matiere)
     {
-        $request->validate([
-            'Nmat' => 'sometimes|required|string|max:255',
-            'code' => 'sometimes|required|string|max:255',
-            'designation' => 'sometimes|required|string|max:255',
-            'BEP' => 'sometimes|boolean',
-            'CFA' => 'sometimes|boolean',
-            'CAP' => 'sometimes|boolean',
-            'ConcoursLTP' => 'sometimes|boolean',
-            'ConcoursCFP' => 'sometimes|boolean',
-            'Observations' => 'nullable|string',
+        $validated = $request->validate([
+            'num_matiere' => 'sometimes|required|integer|unique:matieres,num_matiere,' . $matiere->id,
+            'code' => 'sometimes|required|string|unique:matieres,code,' . $matiere->id,
+            'designation' => 'sometimes|required|string',
+            'BEP' => 'boolean',
+            'CAP' => 'boolean',
+            'CFA' => 'boolean',
+            'ConcoursLTP' => 'boolean',
+            'ConcoursCFP' => 'boolean'
         ]);
 
-        $matiere = Matiere::findOrFail($id);
-        $matiere->update($request->all());
-
-        return response()->json($matiere);
+        $matiere->update($validated);
+        return $matiere;
     }
 
-    // Supprimer une matière
-    public function supprimerMatiere($id)
+    public function destroy(Matiere $matiere)
     {
-        $matiere = Matiere::findOrFail($id);
         $matiere->delete();
-
-        return response()->json(null, 204);
+        return response()->noContent();
     }
 }

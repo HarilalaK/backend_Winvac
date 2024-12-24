@@ -13,15 +13,14 @@ return new class extends Migration
     {
         Schema::create('matieres', function (Blueprint $table) {
             $table->id();
-            $table->integer('Nmat');
-            $table->integer('code');
+            $table->integer('num_matiere');
+            $table->string('code')->unique();
             $table->string('designation');
             $table->boolean('BEP')->default(false);
-            $table->boolean('CFA')->default(false);
             $table->boolean('CAP')->default(false);
+            $table->boolean('CFA')->default(false);
             $table->boolean('ConcoursLTP')->default(false);
             $table->boolean('ConcoursCFP')->default(false);
-            $table->string('Observations');
             $table->timestamps();
         });
     }

@@ -2,23 +2,26 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Matiere extends Model
 {
-    use HasFactory;
-
-    // Indique les colonnes qui peuvent être assignées en masse
     protected $fillable = [
-        'Nmat',
+        'num_matiere',
         'code',
         'designation',
         'BEP',
-        'CFA',
         'CAP',
+        'CFA',
         'ConcoursLTP',
-        'ConcoursCFP',
-        'Observations',
+        'ConcoursCFP'
+    ];
+
+    protected $casts = [
+        'BEP' => 'boolean',
+        'CAP' => 'boolean',
+        'CFA' => 'boolean',
+        'ConcoursLTP' => 'boolean',
+        'ConcoursCFP' => 'boolean'
     ];
 }

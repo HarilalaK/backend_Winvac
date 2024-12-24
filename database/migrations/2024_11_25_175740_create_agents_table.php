@@ -14,11 +14,10 @@ return new class extends Migration
         Schema::create('agents', function (Blueprint $table) {
             $table->id();
             $table->year('annee');
-            $table->string('province');
-            $table->string('region');
-            $table->string('centre');
+            $table->foreignId('centre_id')->constrained('centres')->onDelete('cascade');
             $table->string('situation');
-            $table->enum('role', ['president', 'presidentAdjoint', 'SecOrg', 'CDC', 'CDCA', 'secretaire', 'Surveillance', 'correction', 'Securite']);
+            $table->enum('role', ['PDO', 'VPDO', 'CDC', 'CDCA', 'secretaire', 'secOrg', 'surveillance', 'securite', 'correcteur']);
+            $table->enum('typeExamen', ['BEP', 'CFA', 'CAP', 'ConcoursLTP', 'ConcoursCFP']);
             $table->integer('jours_travaille')->nullable();
             $table->string('im')->nullable();
             $table->string('cin');
@@ -32,6 +31,9 @@ return new class extends Migration
             $table->integer('jours_surveillance')->nullable();
             $table->integer('jours_encours')->nullable();
             $table->integer('jours_ensalles')->nullable();
+            $table->decimal('taux_brut', 10, 2)->nullable();
+            $table->decimal('irsa', 10, 2)->nullable();
+            $table->decimal('taux_net', 10, 2)->nullable();
             $table->timestamps();
         });
     }

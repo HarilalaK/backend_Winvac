@@ -8,7 +8,7 @@ use App\Http\Controllers\Api\AgentController;
 use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\CentreController;
-use App\Http\Controllers\Api\TauxController;
+use App\Http\Controllers\Api\RoleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -23,74 +23,69 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Post
-Route::get('/post', [PostController::class, 'getPostAll']);
-Route::get('/post/{id}', [PostController::class, 'getPostbyId']);
-Route::patch('/post/{id}', [PostController::class, 'editPost']);
-Route::delete('/post/{id}', [PostController::class, 'deletePost']);
-Route::get('/users/all', [UserController::class, 'getAllUsers']);
-//utilisateur
-
+// Routes publiques
 Route::post('/login', [UserController::class, 'login']);
 
-
-Route::middleware('auth:sanctum')->group(function(){
-
+// Routes pour la gestion des lieux (accessibles avec authentification)
+Route::middleware('auth:sanctum')->group(function () {
+    // Hiérarchie des lieux
+    Route::get('/locations/hierarchy', [ProvinceController::class, 'hierarchy']);
+    
+    // Routes des provinces
+    Route::get('/provinces', [ProvinceController::class, 'index']);
+    Route::get('/provinces/{province}', [ProvinceController::class, 'show']);
+    Route::get('/provinces/{province}/regions', [ProvinceController::class, 'regions']);
+    
+    // Routes des régions
+    Route::get('/regions/{region}/centres', [RegionController::class, 'centres']);
+    
+    // Routes des rôles (accessibles à tous les utilisateurs authentifiés)
+    Route::get('/roles', [RoleController::class, 'index']);
+    Route::get('/roles/{role}', [RoleController::class, 'show']);
+    
+    // Routes protégées par le rôle Admin
     Route::middleware(['check.status:Admin'])->group(function() {
+        Route::post('/provinces', [ProvinceController::class, 'store']);
+        Route::put('/provinces/{province}', [ProvinceController::class, 'update']);
+        Route::delete('/provinces/{province}', [ProvinceController::class, 'destroy']);
+        
+        // Autres routes Admin existantes...
         Route::get('/users/{id}', [UserController::class, 'getUserById']);
-        Route::post('/post', [PostController::class, 'addPost']);
         Route::post('/register', [UserController::class, 'register']);
         Route::delete('/users/{id}', [UserController::class, 'deleteUser']);
         Route::get('/journal', [JournalController::class, 'index']);
-
-        //agents
-        Route::apiResource('agents', AgentController::class);
-
-        //lieu
-        Route::apiResource('provinces', ProvinceController::class);
+        Route::post('/post', [PostController::class, 'addPost']);
         Route::apiResource('regions', RegionController::class);
         Route::apiResource('centres', CentreController::class);
-
-        // Taux
-        Route::apiResource('taux', TauxController::class);
-    });
-
-    Route::middleware(['check.status:Admin,DR'])->group(function() {
-        Route::patch('/post/{id}', [PostController::class, 'editPost']);
-        Route::delete('/post/{id}', [PostController::class, 'deletePost']);
-
-        //Matiere
-        Route::post('/matiere', [MatiereController::class, 'creerMatiere']); // Ajouter une matière
-        Route::delete('/matiere/{id}', [MatiereController::class, 'supprimerMatiere']); // Supprimer une matière
-        Route::patch('/matiere/{id}', [MatiereController::class, 'mettreAJourMatiere']); // Mettre à jour une matière
-        Route::get('/matieres', [MatiereController::class, 'recupererMatieres']); // Voir toutes les matières
-        Route::get('/matiere/{id}', [MatiereController::class, 'recupererMatiere']);
-
-        // Routes pour les agents
+        // Seules les opérations de modification des rôles sont protégées
+        Route::post('/roles', [RoleController::class, 'store']);
+        Route::put('/roles/{role}', [RoleController::class, 'update']);
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
+        Route::get('roles/{role}/agents', [RoleController::class, 'agents']);
+        Route::apiResource('agents', AgentController::class);
         
     });
 
+    // Routes Admin,DR existantes...
+    Route::middleware(['check.status:Admin,DR'])->group(function() {
+        Route::patch('/post/{id}', [PostController::class, 'editPost']);
+        Route::delete('/post/{id}', [PostController::class, 'deletePost']);
+        Route::post('/matiere', [MatiereController::class, 'creerMatiere']);
+        Route::apiResource('matieres', MatiereController::class);
+    });
+
+    // Routes Admin,DR,Operateur existantes...
     Route::middleware(['check.status:Admin,DR,Operateur'])->group(function() {
         Route::get('/post/{id}', [PostController::class, 'getPostbyId']);
         Route::get('/user', [UserController::class,'getProfile']);
         Route::patch('/users/{id}',[UserController::class,'updateUser']);
         Route::patch('/user/password', [UserController::class, 'updatePassword']);
-
-
-        //agents
         Route::get('/agents', [AgentController::class, 'index']);
         Route::get('/agent/{id}', [AgentController::class, 'show']);
     });
 
+    // Routes Operateur,Admin existantes...
     Route::middleware(['check.status:Operateur,Admin'])->group(function() {
-        //ajout agent
         Route::post('/agents', [AgentController::class, 'store']);
-
     });
-    Route::middleware(['check.status:DR'])->group(function() {
-        
-        
-    });
-
-    
 });
