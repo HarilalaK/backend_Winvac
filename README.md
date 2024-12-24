@@ -1,4 +1,4 @@
-<p align="center"><img src="image/logo.jpg" width="400" alt="WinVac Logo"></p>
+<p align="center"><img src="{{ asset('images/favicon.ico') }}" width="400" alt="WinVac Logo"></p>
 
 # WinVac - Système de Gestion
 
