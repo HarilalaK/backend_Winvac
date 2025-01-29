@@ -81,11 +81,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/users/{id}',[UserController::class,'updateUser']);
         Route::patch('/user/password', [UserController::class, 'updatePassword']);
         Route::get('/agents', [AgentController::class, 'index']);
-        Route::get('/agent/{id}', [AgentController::class, 'show']);
+        Route::get('/agents/{id}', [AgentController::class, 'show']);
+        Route::get('/agents/role/{role}', [AgentController::class, 'getAgentsByRole']);
+        Route::get('/agents/{id}/details', [AgentController::class, 'getAgentDetails']);
+        Route::get('/centres/{centreId}/agents', [AgentController::class, 'getAgentsByCentre']);
     });
 
     // Routes Operateur,Admin existantes...
     Route::middleware(['check.status:Operateur,Admin'])->group(function() {
         Route::post('/agents', [AgentController::class, 'store']);
+        Route::put('/agents/{id}', [AgentController::class, 'update']);
+        Route::delete('/agents/{id}', [AgentController::class, 'destroy']);
     });
 });
