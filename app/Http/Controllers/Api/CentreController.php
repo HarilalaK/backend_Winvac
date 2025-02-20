@@ -18,7 +18,6 @@ class CentreController extends Controller
     {
         $validated = $request->validate([
             'nom' => 'required|string',
-            'type' => ['required', Rule::in(['examen', 'etablissement'])],
             'region_id' => 'required|exists:regions,id',
             'nombre_salles' => 'nullable|integer',
             'nombre_candidats' => 'nullable|integer',
@@ -35,7 +34,6 @@ class CentreController extends Controller
     {
         $validated = $request->validate([
             'nom' => 'sometimes|required|string',
-            'type' => ['sometimes', 'required', Rule::in(['examen', 'etablissement'])],
             'region_id' => 'sometimes|required|exists:regions,id',
             'nombre_salles' => 'nullable|integer',
             'nombre_candidats' => 'nullable|integer',
@@ -55,7 +53,6 @@ class CentreController extends Controller
         return response()->json([
             'id' => $centre->id,
             'nom' => $centre->nom,
-            'type' => $centre->type,
             'region' => [
                 'id' => $centre->region->id,
                 'nom' => $centre->region->nom,
@@ -74,4 +71,4 @@ class CentreController extends Controller
         $centre->delete();
         return response()->json(null, 204);
     }
-} 
+}

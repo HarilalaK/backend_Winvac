@@ -4,14 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
-use App\Models\PdoDetail;
-use App\Models\VpdoDetail;
-use App\Models\CdcDetail;
-use App\Models\CdcaDetail;
-use App\Models\SecretaireDetail;
-use App\Models\SecOrgDetail;
-use App\Models\SurveillanceDetail;
-use App\Models\SecuriteDetail;
+use App\Models\AgentDetail;
+use App\Models\TauxRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -20,7 +14,7 @@ class AgentController extends Controller
 {
     public function index()
     {
-        $agents = Agent::with(['centre'])->get();
+        $agents = Agent::with(['centre', 'detail'])->get();
         return response()->json([
             'status' => 'success',
             'data' => $agents
@@ -32,41 +26,72 @@ class AgentController extends Controller
         try {
             DB::beginTransaction();
 
-            // Validation commune pour tous les agents
-            $validatedData = $request->validate([
-                'nom' => 'required|string|max:255',
-                'prenom' => 'required|string|max:255',
-                'centre_id' => 'required|exists:centres,id',
-                'role' => ['required', Rule::in(['PDO', 'VPDO', 'CDC', 'CDCA', 'Secretaire', 'SecOrg', 'Surveillance', 'Securite'])],
+            // Validation des données de base de l'agent
+            $validatedAgentData = $request->validate([
+                'agent.annee' => 'required|integer',
+                'agent.centre_id' => 'required|exists:centres,id',
+                'agent.situation' => ['required', Rule::in(['permanant', 'non permanant'])],
+                'agent.role' => ['required', Rule::in(['PDO', 'VPDO', 'CDC', 'CDCA', 'Secretaire', 'SecOrg', 'Surveillance', 'Securite', 'Correcteur'])],
+                'agent.typeExamen' => ['required', Rule::in(['BEP', 'CFA', 'CAP', 'ConcoursLTP', 'ConcoursCFP'])],
+                'agent.im' => 'nullable|string',
+                'agent.cin' => 'required|string|unique:agents,cin',
+                'agent.nom' => 'required|string',
+                'agent.prenom' => 'required|string',
+                'agent.sexe' => ['required', Rule::in(['M', 'F'])],
+                'agent.lieu_cin' => 'required|string',
+                'agent.date_cin' => 'required|date',
             ]);
 
             // Créer l'agent
-            $agent = Agent::create($validatedData);
+            $agent = Agent::create($validatedAgentData['agent']);
 
-            // Traitement spécifique selon le rôle
-            switch ($request->role) {
-                case 'PDO':
-                case 'VPDO':
-                case 'CDC':
-                case 'CDCA':
-                case 'Secretaire':
-                case 'SecOrg':
-                case 'Securite':
-                    $this->validateStandardRole($request);
-                    $this->createStandardDetail($agent, $request);
-                    break;
+            // Validation et création des détails selon le rôle
+            if ($request->has('details')) {
+                $detailsData = [];
+                
+                switch ($agent->role) {
+                    case 'Secretaire':
+                    case 'SecOrg':
+                    case 'Securite':
+                        $validatedDetails = $request->validate([
+                            'details.jours_travaille' => 'required|integer|min:1'
+                        ]);
+                        $detailsData = $validatedDetails['details'];
+                        break;
 
-                case 'Surveillance':
-                    $this->validateSurveillanceRole($request);
-                    $this->createSurveillanceDetail($agent, $request);
-                    break;
+                    case 'Surveillance':
+                        $validatedDetails = $request->validate([
+                            'details.jours_surveillance' => 'required|integer|min:0',
+                            'details.jours_encours' => 'required|integer|min:0',
+                            'details.jours_ensalles' => 'required|integer|min:0'
+                        ]);
+                        $detailsData = $validatedDetails['details'];
+                        break;
+
+                    case 'Correcteur':
+                        $validatedDetails = $request->validate([
+                            'details.matiere' => 'required|string',
+                            'details.nombre_copie' => 'required|integer|min:0'
+                        ]);
+                        $detailsData = $validatedDetails['details'];
+                        break;
+                }
+
+                if (!empty($detailsData)) {
+                    // Récupérer les taux correspondants
+                    $tauxRole = TauxRole::where('role', $agent->role)->first();
+                    if ($tauxRole) {
+                        $detailsData = array_merge($detailsData, $this->calculateMontants($agent->role, $detailsData, $tauxRole));
+                    }
+                    $agent->detail()->create($detailsData);
+                }
             }
 
             DB::commit();
             return response()->json([
                 'status' => 'success',
                 'message' => 'Agent créé avec succès',
-                'data' => $agent->load('centre')
+                'data' => $agent->load(['centre', 'detail'])
             ], 201);
 
         } catch (\Exception $e) {
@@ -82,15 +107,10 @@ class AgentController extends Controller
     public function show($id)
     {
         try {
-            $agent = Agent::with(['centre'])->findOrFail($id);
-            $details = $this->getAgentDetailsByRole($agent);
-
+            $agent = Agent::with(['centre', 'detail'])->findOrFail($id);
             return response()->json([
                 'status' => 'success',
-                'data' => [
-                    'agent' => $agent,
-                    'details' => $details
-                ]
+                'data' => $agent
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -108,25 +128,77 @@ class AgentController extends Controller
 
             $agent = Agent::findOrFail($id);
 
-            // Validation commune
-            $validatedData = $request->validate([
-                'nom' => 'sometimes|string|max:255',
-                'prenom' => 'sometimes|string|max:255',
-                'centre_id' => 'sometimes|exists:centres,id',
-            ]);
+            // Validation des données de base de l'agent
+            if ($request->has('agent')) {
+                $validatedAgentData = $request->validate([
+                    'agent.annee' => 'sometimes|integer',
+                    'agent.centre_id' => 'sometimes|exists:centres,id',
+                    'agent.situation' => ['sometimes', Rule::in(['permanant', 'non permanant'])],
+                    'agent.role' => ['sometimes', Rule::in(['PDO', 'VPDO', 'CDC', 'CDCA', 'Secretaire', 'SecOrg', 'Surveillance', 'Securite', 'Correcteur'])],
+                    'agent.typeExamen' => ['sometimes', Rule::in(['BEP', 'CFA', 'CAP', 'ConcoursLTP', 'ConcoursCFP'])],
+                    'agent.im' => 'nullable|string',
+                    'agent.cin' => 'sometimes|string|unique:agents,cin,' . $id,
+                    'agent.nom' => 'sometimes|string',
+                    'agent.prenom' => 'sometimes|string',
+                    'agent.sexe' => ['sometimes', Rule::in(['M', 'F'])],
+                    'agent.lieu_cin' => 'sometimes|string',
+                    'agent.date_cin' => 'sometimes|date',
+                ]);
 
-            $agent->update($validatedData);
+                $agent->update($validatedAgentData['agent']);
+            }
 
-            // Mise à jour des détails selon le rôle
-            if ($request->has('jours_travaille') || $request->has('taux_journalier')) {
-                $this->updateAgentDetails($agent, $request);
+            // Mise à jour des détails
+            if ($request->has('details')) {
+                $detailsData = [];
+                
+                switch ($agent->role) {
+                    case 'Secretaire':
+                    case 'SecOrg':
+                    case 'Securite':
+                        $validatedDetails = $request->validate([
+                            'details.jours_travaille' => 'required|integer|min:1'
+                        ]);
+                        $detailsData = $validatedDetails['details'];
+                        break;
+
+                    case 'Surveillance':
+                        $validatedDetails = $request->validate([
+                            'details.jours_surveillance' => 'required|integer|min:0',
+                            'details.jours_encours' => 'required|integer|min:0',
+                            'details.jours_ensalles' => 'required|integer|min:0'
+                        ]);
+                        $detailsData = $validatedDetails['details'];
+                        break;
+
+                    case 'Correcteur':
+                        $validatedDetails = $request->validate([
+                            'details.matiere' => 'required|string',
+                            'details.nombre_copie' => 'required|integer|min:0'
+                        ]);
+                        $detailsData = $validatedDetails['details'];
+                        break;
+                }
+
+                if (!empty($detailsData)) {
+                    $tauxRole = TauxRole::where('role', $agent->role)->first();
+                    if ($tauxRole) {
+                        $detailsData = array_merge($detailsData, $this->calculateMontants($agent->role, $detailsData, $tauxRole));
+                    }
+                    
+                    if ($agent->detail) {
+                        $agent->detail->update($detailsData);
+                    } else {
+                        $agent->detail()->create($detailsData);
+                    }
+                }
             }
 
             DB::commit();
             return response()->json([
                 'status' => 'success',
                 'message' => 'Agent mis à jour avec succès',
-                'data' => $agent->load('centre')
+                'data' => $agent->load(['centre', 'detail'])
             ]);
 
         } catch (\Exception $e) {
@@ -144,7 +216,7 @@ class AgentController extends Controller
         try {
             $agent = Agent::findOrFail($id);
             $agent->delete();
-            
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Agent supprimé avec succès'
@@ -158,143 +230,177 @@ class AgentController extends Controller
         }
     }
 
-    // Méthodes utilitaires privées
-    private function validateStandardRole(Request $request)
+    public function filter(Request $request)
     {
-        return $request->validate([
-            'jours_travaille' => 'required|integer|min:1',
-            'taux_journalier' => 'required|numeric|min:0'
-        ]);
+        try {
+            $query = Agent::with(['centre.region.province', 'detail']);
+
+            // Filtre par type d'examen
+            if ($request->has('type_examen') && $request->type_examen !== '') {
+                $query->where('typeExamen', $request->type_examen);
+            }
+
+            // Filtre par session/année
+            if ($request->has('session') && $request->session !== '') {
+                $query->where('annee', $request->session);
+            }
+
+            // Filtre par province
+            if ($request->has('province') && $request->province !== '') {
+                $query->whereHas('centre.region.province', function($q) use ($request) {
+                    $q->where('id', $request->province);
+                });
+            }
+
+            // Filtre par région
+            if ($request->has('region') && $request->region !== '') {
+                $query->whereHas('centre.region', function($q) use ($request) {
+                    $q->where('id', $request->region);
+                });
+            }
+
+            // Filtre par centre
+            if ($request->has('centre') && $request->centre !== '') {
+                $query->where('centre_id', $request->centre);
+            }
+
+            // Filtre par rôle
+            if ($request->filled('role')) {
+                $query->where('role', $request->role);
+            }
+
+            // Filtre par situation
+            if ($request->has('situation') && $request->situation !== '') {
+                $query->where('situation', $request->situation);
+            }
+
+            $agents = $query->get();
+
+            // Calculer les totaux
+            $totals = [
+                'taux_brut_total' => $agents->sum(function($agent) {
+                    return $agent->detail ? $agent->detail->taux_brut : 0;
+                }),
+                'irsa_total' => $agents->sum(function($agent) {
+                    return $agent->detail ? $agent->detail->irsa : 0;
+                }),
+                'taux_net_total' => $agents->sum(function($agent) {
+                    return $agent->detail ? $agent->detail->taux_net : 0;
+                }),
+                'nombre_agents' => $agents->count()
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $agents,
+                'totals' => $totals,
+                'message' => 'Filtrage effectué avec succès'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Erreur lors du filtrage',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    private function validateSurveillanceRole(Request $request)
+    public function getDecompte(Request $request)
     {
-        return $request->validate([
-            'jours_surveillance' => 'required|integer|min:0',
-            'jours_encours' => 'required|integer|min:0',
-            'jours_ensalles' => 'required|integer|min:0',
-            'taux_par_jour' => 'required|numeric|min:0'
-        ]);
+        try {
+            $query = Agent::with(['centre', 'detail']);
+
+            if ($request->filled('typeExamen')) {
+                $query->where('typeExamen', $request->typeExamen);
+            }
+            
+            if ($request->filled('session')) {
+                $query->where('annee', $request->session);
+            }
+            
+            if ($request->filled('centre_id')) {
+                $query->where('centre_id', $request->centre_id);
+            }
+
+            $agents = $query->get();
+
+            // Calculer les totaux depuis les détails
+            $totals = [
+                'taux_brut' => $agents->sum(function($agent) {
+                    return $agent->detail ? $agent->detail->taux_brut : 0;
+                }),
+                'irsa' => $agents->sum(function($agent) {
+                    return $agent->detail ? $agent->detail->irsa : 0;
+                }),
+                'net_a_payer' => $agents->sum(function($agent) {
+                    return $agent->detail ? $agent->detail->taux_net : 0;
+                })
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'data' => $agents,
+                    'totals' => $totals
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    private function calculateTaux($base)
+    private function calculateMontants($role, $details, $tauxRole)
     {
-        $tauxBrut = $base;
-        $irsa = $this->calculateIRSA($tauxBrut);
-        $tauxNet = $tauxBrut - $irsa;
+        $taux_brut = 0;
+
+        switch ($role) {
+            case 'PDO':
+            case 'VPDO':
+            case 'CDC':
+            case 'CDCA':
+                $taux_brut = $tauxRole->taux_forfaitaire;
+                break;
+
+            case 'Secretaire':
+            case 'SecOrg':
+            case 'Securite':
+                $taux_brut = $tauxRole->taux_journalier * $details['jours_travaille'];
+                break;
+
+            case 'Surveillance':
+                $total_jours = $details['jours_surveillance'] + $details['jours_encours'] + $details['jours_ensalles'];
+                $taux_brut = $tauxRole->taux_journalier * $total_jours;
+                break;
+
+            case 'Correcteur':
+                if ($details['nombre_copie'] <= 100) {
+                    $taux_brut = $tauxRole->taux_base_correcteur;
+                } else {
+                    $surplus = $details['nombre_copie'] - 100;
+                    $taux_surplus = $tauxRole->taux_surplus_bep;
+                    $taux_brut = $tauxRole->taux_base_correcteur + ($surplus * $taux_surplus);
+                }
+                break;
+        }
+
+        // Calcul de l'IRSA (à adapter selon vos règles)
+        $irsa = $this->calculateIRSA($taux_brut);
+        $taux_net = $taux_brut - $irsa;
 
         return [
-            'taux_brut' => $tauxBrut,
+            'taux_brut' => $taux_brut,
             'irsa' => $irsa,
-            'taux_net' => $tauxNet
+            'taux_net' => $taux_net
         ];
     }
 
-    private function calculateIRSA($tauxBrut)
+    private function calculateIRSA($montant)
     {
-        return $tauxBrut * 0.2; // 20% IRSA
-    }
-
-    private function createStandardDetail($agent, $request)
-    {
-        $taux = $this->calculateTaux($request->jours_travaille * $request->taux_journalier);
-        $detailData = [
-            'agent_id' => $agent->id,
-            'jours_travaille' => $request->jours_travaille,
-            'taux_journalier' => $request->taux_journalier,
-            'taux_brut' => $taux['taux_brut'],
-            'irsa' => $taux['irsa'],
-            'taux_net' => $taux['taux_net']
-        ];
-
-        switch ($agent->role) {
-            case 'PDO':
-                PdoDetail::create($detailData);
-                break;
-            case 'VPDO':
-                VpdoDetail::create($detailData);
-                break;
-            case 'CDC':
-                CdcDetail::create($detailData);
-                break;
-            case 'CDCA':
-                CdcaDetail::create($detailData);
-                break;
-            case 'Secretaire':
-                SecretaireDetail::create($detailData);
-                break;
-            case 'SecOrg':
-                SecOrgDetail::create($detailData);
-                break;
-            case 'Securite':
-                SecuriteDetail::create($detailData);
-                break;
-        }
-    }
-
-    private function createSurveillanceDetail($agent, $request)
-    {
-        $totalJours = $request->jours_surveillance + $request->jours_encours + $request->jours_ensalles;
-        $taux = $this->calculateTaux($totalJours * $request->taux_par_jour);
-
-        SurveillanceDetail::create([
-            'agent_id' => $agent->id,
-            'jours_surveillance' => $request->jours_surveillance,
-            'jours_encours' => $request->jours_encours,
-            'jours_ensalles' => $request->jours_ensalles,
-            'taux_par_jour' => $request->taux_par_jour,
-            'taux_brut' => $taux['taux_brut'],
-            'irsa' => $taux['irsa'],
-            'taux_net' => $taux['taux_net']
-        ]);
-    }
-
-    private function getAgentDetailsByRole($agent)
-    {
-        switch ($agent->role) {
-            case 'PDO':
-                return $agent->pdoDetail;
-            case 'VPDO':
-                return $agent->vpdoDetail;
-            case 'CDC':
-                return $agent->cdcDetail;
-            case 'CDCA':
-                return $agent->cdcaDetail;
-            case 'Secretaire':
-                return $agent->secretaireDetail;
-            case 'SecOrg':
-                return $agent->secOrgDetail;
-            case 'Surveillance':
-                return $agent->surveillanceDetail;
-            case 'Securite':
-                return $agent->securiteDetail;
-            default:
-                return null;
-        }
-    }
-
-    // Méthodes supplémentaires pour les fonctionnalités spécifiques
-    public function getAgentsByRole($role)
-    {
-        $agents = Agent::where('role', $role)
-            ->with(['centre'])
-            ->get();
-            
-        return response()->json([
-            'status' => 'success',
-            'data' => $agents
-        ]);
-    }
-
-    public function getAgentsByCentre($centreId)
-    {
-        $agents = Agent::where('centre_id', $centreId)
-            ->with(['centre'])
-            ->get();
-            
-        return response()->json([
-            'status' => 'success',
-            'data' => $agents
-        ]);
+        // IRSA est de 2%
+        return $montant * 0.02;
     }
 }

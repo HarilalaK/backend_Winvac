@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             MatiereSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
+            TauxRoleSeeder::class,
         ]);
     }
 }

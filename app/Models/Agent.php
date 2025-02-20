@@ -37,73 +37,21 @@ class Agent extends Model
         static::updating(function ($model) {
             $model->updated_by = auth()->user()->login ?? 'HarilalaK';
         });
+
+        // Supprimer les détails de l'agent lors de sa suppression
+        static::deleting(function ($agent) {
+            $agent->detail()->delete();
+        });
     }
 
-    // Relations avec tous les types de détails
-    public function pdoDetails()
+    // Nouvelle relation unique avec AgentDetail
+    public function detail()
     {
-        return $this->hasOne(PdoDetail::class);
-    }
-
-    public function vpdoDetails()
-    {
-        return $this->hasOne(VpdoDetail::class);
-    }
-
-    public function cdcDetails()
-    {
-        return $this->hasOne(CdcDetail::class);
-    }
-
-    public function cdcaDetails()
-    {
-        return $this->hasOne(CdcaDetail::class);
-    }
-
-    public function secretaireDetails()
-    {
-        return $this->hasOne(SecretaireDetail::class);
-    }
-
-    public function secOrgDetails()
-    {
-        return $this->hasOne(SecOrgDetail::class);
-    }
-
-    public function surveillanceDetails()
-    {
-        return $this->hasOne(SurveillanceDetail::class);
-    }
-
-    public function securiteDetails()
-    {
-        return $this->hasOne(SecuriteDetail::class);
-    }
-
-    public function correcteurDetails()
-    {
-        return $this->hasOne(CorrecteurDetail::class);
+        return $this->hasOne(AgentDetail::class);
     }
 
     public function centre()
     {
         return $this->belongsTo(Centre::class);
-    }
-
-    // Méthode helper pour obtenir les détails selon le rôle
-    public function getRoleDetails()
-    {
-        return match($this->role) {
-            'PDO' => $this->pdoDetails,
-            'VPDO' => $this->vpdoDetails,
-            'CDC' => $this->cdcDetails,
-            'CDCA' => $this->cdcaDetails,
-            'secretaire' => $this->secretaireDetails,
-            'secOrg' => $this->secOrgDetails,
-            'surveillance' => $this->surveillanceDetails,
-            'securite' => $this->securiteDetails,
-            'correcteur' => $this->correcteurDetails,
-            default => null
-        };
     }
 }

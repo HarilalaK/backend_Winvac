@@ -11,7 +11,6 @@ class Centre extends Model
 
     protected $fillable = [
         'nom',
-        'type',
         'region_id',
         'nombre_salles',
         'nombre_candidats',

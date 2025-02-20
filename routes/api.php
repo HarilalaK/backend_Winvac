@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ProvinceController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\CentreController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\TauxRoleController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -49,7 +50,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/provinces/{province}', [ProvinceController::class, 'update']);
         Route::delete('/provinces/{province}', [ProvinceController::class, 'destroy']);
         
+        // Routes pour la gestion des taux par rôle
+        Route::apiResource('taux-roles', TauxRoleController::class);
+        Route::get('taux-roles/role/{role}', [TauxRoleController::class, 'getTauxByRole']);
+        
         // Autres routes Admin existantes...
+        Route::get('/users', [UserController::class, 'getAllUsers']);
         Route::get('/users/{id}', [UserController::class, 'getUserById']);
         Route::post('/register', [UserController::class, 'register']);
         Route::delete('/users/{id}', [UserController::class, 'deleteUser']);
@@ -72,19 +78,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/post/{id}', [PostController::class, 'deletePost']);
         Route::post('/matiere', [MatiereController::class, 'creerMatiere']);
         Route::apiResource('matieres', MatiereController::class);
+        
+        Route::patch('/users/{id}',[UserController::class,'updateUser']);
     });
 
     // Routes Admin,DR,Operateur existantes...
     Route::middleware(['check.status:Admin,DR,Operateur'])->group(function() {
         Route::get('/post/{id}', [PostController::class, 'getPostbyId']);
         Route::get('/user', [UserController::class,'getProfile']);
-        Route::patch('/users/{id}',[UserController::class,'updateUser']);
         Route::patch('/user/password', [UserController::class, 'updatePassword']);
         Route::get('/agents', [AgentController::class, 'index']);
         Route::get('/agents/{id}', [AgentController::class, 'show']);
         Route::get('/agents/role/{role}', [AgentController::class, 'getAgentsByRole']);
         Route::get('/agents/{id}/details', [AgentController::class, 'getAgentDetails']);
         Route::get('/centres/{centreId}/agents', [AgentController::class, 'getAgentsByCentre']);
+        Route::post('/agents/filter', [AgentController::class, 'filter']);
+        Route::get('/agents/decompte', [AgentController::class, 'getDecompte']);
     });
 
     // Routes Operateur,Admin existantes...
@@ -93,4 +102,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/agents/{id}', [AgentController::class, 'update']);
         Route::delete('/agents/{id}', [AgentController::class, 'destroy']);
     });
-});
+
+    });

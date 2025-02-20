@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('centres', function (Blueprint $table) {
             $table->id();
             $table->string('nom');
-            $table->enum('type', ['examen', 'etablissement']);
             $table->foreignId('region_id')->constrained('regions')->onDelete('cascade');
             $table->integer('nombre_salles')->nullable();
             $table->integer('nombre_candidats')->nullable();
@@ -28,4 +27,4 @@ return new class extends Migration
     {
         Schema::dropIfExists('centres');
     }
-}; 
+};
