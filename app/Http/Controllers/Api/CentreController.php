@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Centre;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Models\Journal;
+use Illuminate\Support\Facades\Auth;
 
 class CentreController extends Controller
 {
@@ -27,6 +29,21 @@ class CentreController extends Controller
         ]);
 
         $centre = Centre::create($validated);
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Création d'un nouveau centre : {$centre->nom} (Région: {$centre->region->nom})",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'centre' => $centre->toArray(),
+                'region' => $centre->region->toArray(),
+                'action' => 'création'
+            ])
+        ]);
+
         return response()->json($centre, 201);
     }
 
@@ -42,7 +59,24 @@ class CentreController extends Controller
             'session' => 'nullable|integer'
         ]);
 
+        $oldData = $centre->toArray();
         $centre->update($validated);
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Modification du centre : {$centre->nom}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'ancien' => $oldData,
+                'nouveau' => $centre->toArray(),
+                'region' => $centre->region->toArray(),
+                'action' => 'modification'
+            ])
+        ]);
+
         return response()->json($centre);
     }
 
@@ -68,7 +102,23 @@ class CentreController extends Controller
 
     public function destroy(Centre $centre)
     {
+        $centreData = $centre->toArray();
         $centre->delete();
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Suppression du centre : {$centreData['nom']}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'centre' => $centreData,
+                'region' => $centre->region->toArray(),
+                'action' => 'suppression'
+            ])
+        ]);
+
         return response()->json(null, 204);
     }
 }

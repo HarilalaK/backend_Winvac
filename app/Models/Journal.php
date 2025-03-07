@@ -17,4 +17,9 @@ class Journal extends Model
         'nom_prenom',
         'autres',
     ];
+
+    protected $casts = [
+        'date_op' => 'datetime',
+        'autres' => 'array'
+    ];
 }

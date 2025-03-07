@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use App\Models\Journal;
+use Illuminate\Support\Facades\Auth;
 
 class RoleController extends Controller
 {
@@ -31,6 +33,20 @@ class RoleController extends Controller
         ]);
 
         $role = Role::create($request->all());
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Création d'un nouveau rôle : {$role->nom}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'role' => $role->toArray(),
+                'action' => 'création'
+            ])
+        ]);
+
         return response()->json($role, 201);
     }
 
@@ -45,7 +61,23 @@ class RoleController extends Controller
             'requiert_matiere' => 'sometimes|required|boolean'
         ]);
 
+        $oldData = $role->toArray();
         $role->update($request->all());
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Modification du rôle : {$role->nom}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'ancien' => $oldData,
+                'nouveau' => $role->toArray(),
+                'action' => 'modification'
+            ])
+        ]);
+
         return response()->json($role);
     }
 
@@ -58,7 +90,22 @@ class RoleController extends Controller
             ], 422);
         }
 
+        $roleData = $role->toArray();
         $role->delete();
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Suppression du rôle : {$roleData['nom']}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'role' => $roleData,
+                'action' => 'suppression'
+            ])
+        ]);
+
         return response()->json(null, 204);
     }
 

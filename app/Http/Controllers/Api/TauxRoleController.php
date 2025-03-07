@@ -7,6 +7,8 @@ use App\Models\TauxRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use App\Models\Journal;
+use Illuminate\Support\Facades\Auth;
 
 class TauxRoleController extends Controller
 {
@@ -57,6 +59,20 @@ class TauxRoleController extends Controller
         }
 
         $tauxRole = TauxRole::create($request->all());
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Création d'un nouveau taux pour le rôle : {$tauxRole->role}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'taux_role' => $tauxRole->toArray(),
+                'action' => 'création'
+            ])
+        ]);
+
         return response()->json($tauxRole, 201);
     }
 
@@ -111,8 +127,25 @@ class TauxRoleController extends Controller
             }
         }
 
-        $request->merge(['updated_by' => 'HarilalaK']);
+        $oldData = $tauxRole->toArray();
+        $request->merge(['updated_by' => Auth::user()->nom_prenom]);
         $tauxRole->update($request->all());
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Modification du taux pour le rôle : {$tauxRole->role}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'ancien' => $oldData,
+                'nouveau' => $tauxRole->toArray(),
+                'modifications' => array_diff_assoc($tauxRole->toArray(), $oldData),
+                'action' => 'modification'
+            ])
+        ]);
+
         return response()->json($tauxRole);
     }
 
@@ -125,7 +158,23 @@ class TauxRoleController extends Controller
         if (!$tauxRole) {
             return response()->json(['message' => 'Taux non trouvé'], 404);
         }
+
+        $tauxRoleData = $tauxRole->toArray();
         $tauxRole->delete();
+
+        // Journalisation
+        Journal::create([
+            'date_op' => now(),
+            'operateur' => Auth::user()->nom_prenom,
+            'operations' => "Suppression du taux pour le rôle : {$tauxRoleData['role']}",
+            'cin' => Auth::user()->cin,
+            'nom_prenom' => Auth::user()->nom_prenom,
+            'autres' => json_encode([
+                'taux_role' => $tauxRoleData,
+                'action' => 'suppression'
+            ])
+        ]);
+
         return response()->json(['message' => 'Taux supprimé avec succès']);
     }
 

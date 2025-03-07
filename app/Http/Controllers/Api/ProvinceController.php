@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Province;
 use Illuminate\Http\Request;
+use App\Models\Journal;
+use Illuminate\Support\Facades\Auth;
 
 class ProvinceController extends Controller
 {
@@ -94,6 +96,20 @@ class ProvinceController extends Controller
             ]);
 
             $province = Province::create($request->all());
+
+            // Journalisation
+            Journal::create([
+                'date_op' => now(),
+                'operateur' => Auth::user()->nom_prenom,
+                'operations' => "Création d'une nouvelle province : {$province->nom}",
+                'cin' => Auth::user()->cin,
+                'nom_prenom' => Auth::user()->nom_prenom,
+                'autres' => json_encode([
+                    'province' => $province->toArray(),
+                    'action' => 'création'
+                ])
+            ]);
+
             return response()->json($province, 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -113,7 +129,23 @@ class ProvinceController extends Controller
                 'nom' => 'required|string|unique:provinces,nom,' . $province->id
             ]);
 
+            $oldData = $province->toArray();
             $province->update($request->all());
+
+            // Journalisation
+            Journal::create([
+                'date_op' => now(),
+                'operateur' => Auth::user()->nom_prenom,
+                'operations' => "Modification de la province : {$province->nom}",
+                'cin' => Auth::user()->cin,
+                'nom_prenom' => Auth::user()->nom_prenom,
+                'autres' => json_encode([
+                    'ancien' => $oldData,
+                    'nouveau' => $province->toArray(),
+                    'action' => 'modification'
+                ])
+            ]);
+
             return response()->json($province);
         } catch (\Exception $e) {
             return response()->json([
@@ -129,7 +161,8 @@ class ProvinceController extends Controller
     public function destroy(Province $province)
     {
         try {
-            // Vérifier si la province a des régions
+            $provinceData = $province->toArray();
+            
             if ($province->regions()->exists()) {
                 return response()->json([
                     'message' => 'Impossible de supprimer cette province car elle contient des régions'
@@ -137,6 +170,20 @@ class ProvinceController extends Controller
             }
 
             $province->delete();
+
+            // Journalisation
+            Journal::create([
+                'date_op' => now(),
+                'operateur' => Auth::user()->nom_prenom,
+                'operations' => "Suppression de la province : {$provinceData['nom']}",
+                'cin' => Auth::user()->cin,
+                'nom_prenom' => Auth::user()->nom_prenom,
+                'autres' => json_encode([
+                    'province' => $provinceData,
+                    'action' => 'suppression'
+                ])
+            ]);
+
             return response()->json(null, 204);
         } catch (\Exception $e) {
             return response()->json([

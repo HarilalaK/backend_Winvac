@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\CentreController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\TauxRoleController;
+use App\Http\Controllers\Api\DashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -78,7 +79,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/post/{id}', [PostController::class, 'deletePost']);
         Route::post('/matiere', [MatiereController::class, 'creerMatiere']);
         Route::apiResource('matieres', MatiereController::class);
-        
         Route::patch('/users/{id}',[UserController::class,'updateUser']);
     });
 
@@ -103,4 +103,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/agents/{id}', [AgentController::class, 'destroy']);
     });
 
+    // Routes pour le journal
+    Route::prefix('journal')->group(function () {
+        Route::get('/', [JournalController::class, 'index']);
+        Route::get('/recent', [JournalController::class, 'getRecentActivities']);
+        Route::get('/user/{userId}', [JournalController::class, 'getActivitiesByUser']);
     });
+
+    // Routes pour le dashboard
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/stats', [DashboardController::class, 'getStats']);
+        Route::get('/activities', [DashboardController::class, 'getActivities']);
+    });
+
+});
