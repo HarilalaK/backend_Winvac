@@ -32,29 +32,29 @@ Route::post('/login', [UserController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     // Hiérarchie des lieux
     Route::get('/locations/hierarchy', [ProvinceController::class, 'hierarchy']);
-    
+
     // Routes des provinces
     Route::get('/provinces', [ProvinceController::class, 'index']);
     Route::get('/provinces/{province}', [ProvinceController::class, 'show']);
     Route::get('/provinces/{province}/regions', [ProvinceController::class, 'regions']);
-    
+
     // Routes des régions
     Route::get('/regions/{region}/centres', [RegionController::class, 'centres']);
-    
+
     // Routes des rôles (accessibles à tous les utilisateurs authentifiés)
     Route::get('/roles', [RoleController::class, 'index']);
     Route::get('/roles/{role}', [RoleController::class, 'show']);
-    
+
     // Routes protégées par le rôle Admin
     Route::middleware(['check.status:Admin'])->group(function() {
         Route::post('/provinces', [ProvinceController::class, 'store']);
         Route::put('/provinces/{province}', [ProvinceController::class, 'update']);
         Route::delete('/provinces/{province}', [ProvinceController::class, 'destroy']);
-        
+
         // Routes pour la gestion des taux par rôle
         Route::apiResource('taux-roles', TauxRoleController::class);
         Route::get('taux-roles/role/{role}', [TauxRoleController::class, 'getTauxByRole']);
-        
+
         // Autres routes Admin existantes...
         Route::get('/users', [UserController::class, 'getAllUsers']);
         Route::get('/users/{id}', [UserController::class, 'getUserById']);
@@ -70,7 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/roles/{role}', [RoleController::class, 'destroy']);
         Route::get('roles/{role}/agents', [RoleController::class, 'agents']);
         Route::apiResource('agents', AgentController::class);
-        
+
     });
 
     // Routes Admin,DR existantes...
