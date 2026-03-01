@@ -309,8 +309,8 @@ class AgentController extends Controller
             $query = Agent::with(['centre.region.province', 'detail']);
 
             // Filtre par type d'examen
-            if ($request->has('type_examen') && $request->type_examen !== '') {
-                $query->where('typeExamen', $request->type_examen);
+            if ($request->filled('typeExamen')) {
+                $query->where('typeExamen', $request->typeExamen);
             }
 
             // Filtre par session/année
@@ -333,8 +333,8 @@ class AgentController extends Controller
             }
 
             // Filtre par centre
-            if ($request->has('centre') && $request->centre !== '') {
-                $query->where('centre_id', $request->centre);
+            if ($request->filled('centre_id')) {
+                $query->where('centre_id', $request->centre_id);
             }
 
             // Filtre par rôle
