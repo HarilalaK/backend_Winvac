@@ -16,7 +16,7 @@ return new class extends Migration
             $table->year('annee');
             $table->foreignId('centre_id')->constrained('centres')->onDelete('cascade');
             $table->string('situation');
-            $table->enum('role', ['PDO', 'VPDO', 'CDC', 'CDCA', 'secretaire', 'secOrg', 'surveillance', 'securite', 'correcteur']);
+            $table->string('role'); // Permet les rôles personnalisés
             $table->enum('typeExamen', ['BEP', 'CFA', 'CAP', 'ConcoursLTP', 'ConcoursCFP']);
             $table->string('im')->nullable();
             $table->string('cin');

@@ -18,6 +18,9 @@ return new class extends Migration
             $table->decimal('taux_surplus_autres', 10, 2)->nullable(); // Taux surplus autres
             $table->string('created_by')->default('HarilalaK');
             $table->string('updated_by')->nullable();
+            $table->boolean('is_active')->default(true); // Pour activer/désactiver sans supprimer
+            $table->index('is_active'); // Index pour optimiser les requêtes sur les rôles actifs
+            $table->softDeletes(); // Pour les soft deletes
             $table->timestamps();
         });
     }

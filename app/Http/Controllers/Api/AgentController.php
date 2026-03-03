@@ -471,69 +471,159 @@ class AgentController extends Controller
         ];
     }
 
-    private function calculateIRSA($montant)
-    {
-        // IRSA est de 2%
-        return $montant * 0.02;
-    }
-
+    /**
+     * Gérer les détails financiers d'un agent en utilisant le système de taux dynamique
+     * 
+     * @param Agent $agent
+     * @param Request $request
+     * @return bool
+     * @security Cette méthode utilise le système TauxRole pour calculer les montants
+     */
     private function handleAgentDetails($agent, $request)
     {
         try {
-            // Récupérer le taux en fonction du rôle
-            $tauxRole = TauxRole::where('role', $agent->role)->first();
+            // Récupérer le taux actif pour ce rôle
+            $tauxRole = TauxRole::active()->where('role', $agent->role)->first();
+            
+            if (!$tauxRole) {
+                \Log::error("Aucun taux trouvé pour le rôle: {$agent->role}");
+                throw new \Exception("Aucun taux configuré pour le rôle: {$agent->role}");
+            }
             
             $detailsData = [];
 
-            // Pour les rôles fixes (PDO, VPDO, CDC, CDCA)
-            if (in_array($agent->role, ['PDO', 'VPDO', 'CDC', 'CDCA'])) {
-                $detailsData['taux_forfaitaire'] = $tauxRole->taux_forfaitaire ?? 0;
-                $detailsData['taux_brut'] = $detailsData['taux_forfaitaire'];
-            }
-            // Pour les surveillants
-            elseif ($agent->role === 'Surveillance') {
-                $detailsData = [
-                    'jours_surveillance' => $request->jours_surveillance ?? 0,
-                    'jours_encours' => $request->jours_encours ?? 0,
-                    'jours_ensalles' => $request->jours_ensalles ?? 0,
-                    'taux_par_jour' => $tauxRole->taux_journalier ?? 0
-                ];
-                $totalJours = $detailsData['jours_surveillance'] + $detailsData['jours_encours'] + $detailsData['jours_ensalles'];
-                $detailsData['taux_brut'] = $totalJours * $detailsData['taux_par_jour'];
-            }
-            // Pour les correcteurs
-            elseif ($agent->role === 'Correcteur') {
-                $detailsData = [
-                    'matiere' => $request->matiere,
-                    'nombre_copie' => $request->nombre_copie ?? 0,
-                    'taux_par_copie' => $tauxRole->taux_base_correcteur ?? 0
-                ];
-                $detailsData['taux_brut'] = $detailsData['nombre_copie'] * $detailsData['taux_par_copie'];
-            }
-            // Pour les autres rôles
-            else {
-                $detailsData = [
-                    'jours_travaille' => $request->jours_travaille ?? 0,
-                    'taux_journalier' => $tauxRole->taux_journalier ?? 0
-                ];
-                $detailsData['taux_brut'] = $detailsData['jours_travaille'] * $detailsData['taux_journalier'];
-            }
+            // Préparer les paramètres selon le rôle pour le calcul
+            $params = $this->prepareParamsForRole($agent->role, $request);
+            
+            // Utiliser la méthode de calcul du modèle TauxRole
+            $tauxBrut = $tauxRole->calculateTauxBrut($params);
+            
+            // Construire les données de détails selon le rôle
+            $detailsData = $this->buildDetailsData($agent->role, $request, $tauxRole, $tauxBrut);
+            
+            // Calcul de l'IRSA (20%) et du taux net
+            $detailsData['irsa'] = $this->calculateIRSA($tauxBrut);
+            $detailsData['taux_net'] = $tauxBrut - $detailsData['irsa'];
 
-            // Calcul de l'IRSA et du taux net
-            $detailsData['irsa'] = $detailsData['taux_brut'] * 0.2; // 20% IRSA
-            $detailsData['taux_net'] = $detailsData['taux_brut'] - $detailsData['irsa'];
-
-            // Créer ou mettre à jour les détails
+            // Créer ou mettre à jour les détails de l'agent
             if ($agent->detail) {
                 $agent->detail->update($detailsData);
+                \Log::info("Détails de l'agent {$agent->id} mis à jour avec succès");
             } else {
                 $agent->detail()->create($detailsData);
+                \Log::info("Détails de l'agent {$agent->id} créés avec succès");
             }
 
             return true;
         } catch (\Exception $e) {
-            \Log::error('Erreur lors du traitement des détails de l\'agent: ' . $e->getMessage());
+            \Log::error("Erreur lors du traitement des détails de l'agent {$agent->id}: " . $e->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Préparer les paramètres pour le calcul selon le rôle
+     * 
+     * @param string $role
+     * @param Request $request
+     * @return array
+     */
+    private function prepareParamsForRole($role, $request)
+    {
+        switch ($role) {
+            case 'PDO':
+            case 'VPDO':
+            case 'CDC':
+            case 'CDCA':
+                return []; // Les rôles forfaitaires n'ont pas besoin de paramètres
+                
+            case 'Secretaire':
+            case 'SecOrg':
+            case 'Securite':
+                return [
+                    'jours_travaille' => $request->jours_travaille ?? 1
+                ];
+                
+            case 'Surveillance':
+                return [
+                    'jours_surveillance' => $request->jours_surveillance ?? 0,
+                    'jours_encours' => $request->jours_encours ?? 0,
+                    'jours_ensalles' => $request->jours_ensalles ?? 0
+                ];
+                
+            case 'Correcteur':
+                return [
+                    'nombre_copie' => $request->nombre_copie ?? 0,
+                    'type_examen' => $request->type_examen ?? 'Autres'
+                ];
+                
+            default:
+                return [];
+        }
+    }
+
+    /**
+     * Construire les données de détails selon le rôle
+     * 
+     * @param string $role
+     * @param Request $request
+     * @param TauxRole $tauxRole
+     * @param float $tauxBrut
+     * @return array
+     */
+    private function buildDetailsData($role, $request, $tauxRole, $tauxBrut)
+    {
+        $baseData = [
+            'taux_brut' => $tauxBrut
+        ];
+
+        switch ($role) {
+            case 'PDO':
+            case 'VPDO':
+            case 'CDC':
+            case 'CDCA':
+                return array_merge($baseData, [
+                    'taux_forfaitaire' => $tauxRole->taux_forfaitaire
+                ]);
+                
+            case 'Secretaire':
+            case 'SecOrg':
+            case 'Securite':
+                return array_merge($baseData, [
+                    'jours_travaille' => $request->jours_travaille ?? 1,
+                    'taux_journalier' => $tauxRole->taux_journalier
+                ]);
+                
+            case 'Surveillance':
+                return array_merge($baseData, [
+                    'jours_surveillance' => $request->jours_surveillance ?? 0,
+                    'jours_encours' => $request->jours_encours ?? 0,
+                    'jours_ensalles' => $request->jours_ensalles ?? 0,
+                    'taux_par_jour' => $tauxRole->taux_journalier
+                ]);
+                
+            case 'Correcteur':
+                return array_merge($baseData, [
+                    'matiere' => $request->matiere,
+                    'nombre_copie' => $request->nombre_copie ?? 0,
+                    'taux_base_correcteur' => $tauxRole->taux_base_correcteur,
+                    'taux_surplus_bep' => $tauxRole->taux_surplus_bep,
+                    'taux_surplus_autres' => $tauxRole->taux_surplus_autres
+                ]);
+                
+            default:
+                return $baseData;
+        }
+    }
+
+    /**
+     * Calculer l'IRSA (20% du taux brut)
+     * 
+     * @param float $montant
+     * @return float
+     */
+    private function calculateIRSA($montant)
+    {
+        return $montant * 0.20; // IRSA fixé à 20%
     }
 }

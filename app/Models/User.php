@@ -31,6 +31,7 @@ class User extends Authenticatable
         'contact',
         'password',
         'photo',
+        'region_id',
     ];
 
     /**
@@ -55,5 +56,10 @@ class User extends Authenticatable
     public function posts()
     {
         return $this->hasMany(Post::class);
+    }
+
+    public function region()
+    {
+        return $this->belongsTo(Region::class);
     }
 }

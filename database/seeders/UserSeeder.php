@@ -29,7 +29,7 @@ class UserSeeder extends Seeder
             [
                 'im' => 2001,
                 'cin' => '101321456790',
-                'nom_prenom' => 'Directeur Regional',
+                'nom_prenom' => 'Directeur Regional Analamanga',
                 'date_cin' => '2020-01-02',
                 'lieu_cin' => 'Antananarivo',
                 'attribution' => 'Direction Régionale',
@@ -39,7 +39,8 @@ class UserSeeder extends Seeder
                 'ref_st' => 2,
                 'contact' => '0340000002',
                 'password' => Hash::make('dr123'),
-                'photo' => null
+                'photo' => null,
+                'region_id' => 1 // ID de la région Analamanga (à adapter selon votre base)
             ],
             [
                 'im' => 3001,

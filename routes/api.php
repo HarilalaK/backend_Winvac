@@ -51,9 +51,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/provinces/{province}', [ProvinceController::class, 'update']);
         Route::delete('/provinces/{province}', [ProvinceController::class, 'destroy']);
 
-        // Routes pour la gestion des taux par rôle
+        // Routes pour la gestion des taux par rôle (Admin uniquement)
         Route::apiResource('taux-roles', TauxRoleController::class);
         Route::get('taux-roles/role/{role}', [TauxRoleController::class, 'getTauxByRole']);
+        Route::put('taux-roles/{id}/deactivate', [TauxRoleController::class, 'deactivate']);
+        Route::put('taux-roles/{id}/reactivate', [TauxRoleController::class, 'reactivate']);
 
         // Autres routes Admin existantes...
         Route::get('/users', [UserController::class, 'getAllUsers']);
@@ -73,6 +75,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
     });
 
+    // Routes pour consultation des taux (DR, Operateur, Admin)
+    Route::middleware(['check.status:Admin,DR,Operateur'])->group(function() {
+        // Lecture seule des taux pour tous les rôles authentifiés
+        Route::get('taux-roles', [TauxRoleController::class, 'index']);
+        Route::get('taux-roles/{id}', [TauxRoleController::class, 'show']);
+        Route::get('taux-roles/role/{role}', [TauxRoleController::class, 'getTauxByRole']);
+    });
+
     // Routes Admin,DR existantes...
     Route::middleware(['check.status:Admin,DR'])->group(function() {
         Route::patch('/post/{id}', [PostController::class, 'editPost']);
@@ -82,8 +92,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/users/{id}',[UserController::class,'updateUser']);
     });
 
-    // Routes Admin,DR,Operateur existantes...
-    Route::middleware(['check.status:Admin,DR,Operateur'])->group(function() {
+    // Routes Admin,DR,Operateur existantes avec restrictions géographiques pour les DR
+    Route::middleware(['check.status:Admin,DR,Operateur', 'check.dr.region'])->group(function() {
         Route::get('/post/{id}', [PostController::class, 'getPostbyId']);
         Route::get('/user', [UserController::class,'getProfile']);
         Route::patch('/user/password', [UserController::class, 'updatePassword']);
